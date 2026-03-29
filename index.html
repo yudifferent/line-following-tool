@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>機器人循跡調參工具</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <div class="app-header-top">
+        <h1>機器人循跡調參工具</h1>
+        <span class="app-badge">Beta</span>
+      </div>
+      <p class="app-subtitle">先設定硬體條件，再進行循跡參數調整、視覺化分析與多組比較。</p>
+    </header>
+
+    <main class="app-content">
+      <!-- 初始化設定 -->
+      <section class="card">
+        <h2>初始化設定</h2>
+
+        <label>左馬達前進方向</label>
+        <select id="leftMotorDirection">
+          <option value="1">正</option>
+          <option value="-1">負</option>
+        </select>
+
+        <label>右馬達前進方向</label>
+        <select id="rightMotorDirection">
+          <option value="1">正</option>
+          <option value="-1">負</option>
+        </select>
+
+        <label>黑色數值特性</label>
+        <select id="blackLevel">
+          <option value="low">低</option>
+          <option value="high">高</option>
+        </select>
+
+        <label>白色數值特性（自動對應）</label>
+        <input id="whiteLevelDisplay" type="text" value="高" readonly>
+
+        <div class="button-group single-button">
+          <button id="applyConfigBtn">套用設定並開始調參</button>
+        </div>
+      </section>
+
+      <!-- 調參區 -->
+      <div id="tuningSection" style="display: none;">
+        <main class="main-grid">
+          <!-- 左側：參數與儲存 -->
+          <section class="card">
+            <h2>參數輸入</h2>
+
+            <div class="save-section">
+              <label>設定名稱</label>
+              <input id="configNameInput" type="text" placeholder="例如：A車 / 比賽用">
+
+              <div class="button-group">
+                <button id="saveConfigBtn">儲存設定</button>
+                <button id="loadConfigBtn" class="secondary">讀取設定</button>
+                <button id="deleteConfigBtn" class="danger">刪除設定</button>
+              </div>
+
+              <label class="saved-config-label">已儲存設定</label>
+              <select id="savedConfigSelect">
+                <option value="">請選擇設定</option>
+              </select>
+            </div>
+
+            <div class="compare-entry-section">
+              <label>比較名稱</label>
+              <input id="compareNameInput" type="text" placeholder="例如：測試A / 直線模式">
+
+              <div class="button-group">
+                <button id="addCompareBtn">加入比較</button>
+                <button id="clearCompareBtn" class="secondary">清空比較</button>
+              </div>
+            </div>
+
+            <label>基礎速度</label>
+            <div class="input-row">
+              <input id="baseSpeed" type="range" min="0" max="100" step="1" value="50">
+              <input id="baseSpeedNumber" type="number" min="0" max="100" step="1" value="50">
+            </div>
+
+            <label>左感測器值</label>
+            <div class="input-row">
+              <input id="leftSensor" type="range" min="0" max="100" step="1" value="60">
+              <input id="leftSensorNumber" type="number" min="0" max="100" step="1" value="60">
+            </div>
+
+            <label>右感測器值</label>
+            <div class="input-row">
+              <input id="rightSensor" type="range" min="0" max="100" step="1" value="40">
+              <input id="rightSensorNumber" type="number" min="0" max="100" step="1" value="40">
+            </div>
+
+            <label>Kp</label>
+            <div class="input-row">
+              <input id="kp" type="range" min="0" max="10" step="0.1" value="0.5">
+              <input id="kpNumber" type="number" min="0" max="10" step="0.1" value="0.5">
+            </div>
+
+            <label>Kd</label>
+            <div class="input-row">
+              <input id="kd" type="range" min="0" max="10" step="0.1" value="0.1">
+              <input id="kdNumber" type="number" min="0" max="10" step="0.1" value="0.1">
+            </div>
+
+            <div class="button-group single-button">
+              <button id="resetBtn" class="secondary">重設參數</button>
+            </div>
+          </section>
+
+          <!-- 右側：即時結果 -->
+          <section class="card">
+            <h2>計算結果</h2>
+
+            <div class="result-item"><span>Error</span><strong id="errorValue">-</strong></div>
+            <div class="result-item"><span>Last Error</span><strong id="lastErrorValue">-</strong></div>
+            <div class="result-item"><span>Derivative</span><strong id="derivativeValue">-</strong></div>
+            <div class="result-item"><span>Correction</span><strong id="correctionValue">-</strong></div>
+            <div class="result-item"><span>左輪速度</span><strong id="leftMotorValue">-</strong></div>
+            <div class="result-item"><span>右輪速度</span><strong id="rightMotorValue">-</strong></div>
+            <div class="result-item"><span>感測器判斷</span><strong id="directionValue">-</strong></div>
+            <div class="result-item"><span>控制建議</span><strong id="suggestionValue">-</strong></div>
+            <div class="result-item"><span>安全警告</span><strong id="warningValue">-</strong></div>
+
+            <h3 class="viz-title">條狀視覺化</h3>
+
+            <div class="bar-block">
+              <div class="bar-label">Error</div>
+              <div class="bar-track">
+                <div id="errorBar" class="bar-fill">
+                  <span class="bar-text" id="errorBarText">0</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="bar-block">
+              <div class="bar-label">Correction</div>
+              <div class="bar-track">
+                <div id="correctionBar" class="bar-fill">
+                  <span class="bar-text" id="correctionBarText">0</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="bar-block">
+              <div class="bar-label">左輪速度</div>
+              <div class="bar-track">
+                <div id="leftMotorBar" class="bar-fill">
+                  <span class="bar-text" id="leftMotorBarText">0</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="bar-block">
+              <div class="bar-label">右輪速度</div>
+              <div class="bar-track">
+                <div id="rightMotorBar" class="bar-fill">
+                  <span class="bar-text" id="rightMotorBarText">0</span>
+                </div>
+              </div>
+            </div>
+
+            <p class="hint-text">
+              Derivative 會根據本次與上次 error 的差值計算，若感測器值未改變，derivative 可能為 0。
+            </p>
+          </section>
+        </main>
+
+        <!-- 多組比較 -->
+        <section class="card">
+          <div class="compare-header">
+            <h2>多組比較</h2>
+            <span class="compare-count" id="compareCount">0 組</span>
+          </div>
+
+          <div class="compare-table-wrap">
+            <table class="compare-table">
+              <thead>
+                <tr>
+                  <th>名稱</th>
+                  <th>Base</th>
+                  <th>L</th>
+                  <th>R</th>
+                  <th>Kp</th>
+                  <th>Kd</th>
+                  <th>Error</th>
+                  <th>Derivative</th>
+                  <th>Correction</th>
+                  <th>左輪</th>
+                  <th>右輪</th>
+                  <th>判斷</th>
+                  <th>建議</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="compareTableBody">
+                <tr>
+                  <td colspan="14" class="empty-compare">目前尚未加入比較資料</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card visual-card">
+          <h2>車體方向模擬</h2>
+          <div class="track-area">
+            <div class="line"></div>
+            <div id="car" class="car">車體</div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
